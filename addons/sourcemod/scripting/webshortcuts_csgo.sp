@@ -1,10 +1,10 @@
 #include <sourcemod>
-
+#pragma newdecls required
 #pragma semicolon 1
 
-#define PLUGIN_VERSION				"2.4"
+#define PLUGIN_VERSION				"2.5"
 
-public Plugin:myinfo = 
+public Plugin myinfo = 
 {
 	name = "Web Shortcuts CS:GO version",
 	author = "Franc1sco franug and James \"sslice\" Gray",
@@ -13,14 +13,14 @@ public Plugin:myinfo =
 	url = "http://steamcommunity.com/id/franug/"
 };
 
-new Handle:g_Shortcuts;
-new Handle:g_Titles;
-new Handle:g_Links;
+Handle g_Shortcuts;
+Handle g_Titles;
+Handle g_Links;
 
-new String:g_ServerIp [32];
-new String:g_ServerPort [16];
+char g_ServerIp [32];
+char g_ServerPort [16];
 
-public OnPluginStart()
+public void OnPluginStart()
 {
 	CreateConVar( "sm_webshortcutscsgo_version", PLUGIN_VERSION, "", FCVAR_NOTIFY|FCVAR_REPLICATED );
 	
@@ -33,8 +33,8 @@ public OnPluginStart()
 	g_Titles = CreateArray( 64 );
 	g_Links = CreateArray( 512 );
 	
-	new Handle:cvar = FindConVar( "hostip" );
-	new hostip = GetConVarInt( cvar );
+	Handle cvar = FindConVar( "hostip" );
+	int hostip = GetConVarInt( cvar );
 	FormatEx( g_ServerIp, sizeof(g_ServerIp), "%u.%u.%u.%u",
 		(hostip >> 24) & 0x000000FF, (hostip >> 16) & 0x000000FF, (hostip >> 8) & 0x000000FF, hostip & 0x000000FF );
 	
@@ -44,53 +44,49 @@ public OnPluginStart()
 	LoadWebshortcuts();
 }
  
-public OnMapStart()
+public void OnMapStart()
 {
 	LoadWebshortcuts();
 }
  
-public Action:OnSay( client, args )
+public Action OnSay( int client, int args )
 {
-	if(!client) return Plugin_Continue;	
+	if(!client)
+	{
+		return Plugin_Continue;	
+	}
 	
-	
-	decl String:text [512], String:shortcut[512];
+	char text[512]; 
+	char shortcut[512];
 	GetCmdArgString( text, sizeof(text) );
 	
 	StripQuotes(text);
 	TrimString(text);
 	
-	new size = GetArraySize( g_Shortcuts );
-	for (new i; i != size; ++i)
+	int size = GetArraySize( g_Shortcuts );
+	for (int i; i != size; ++i)
 	{
 		GetArrayString( g_Shortcuts, i, shortcut, sizeof(shortcut) );
 		
 		if ( StrEqual( text, shortcut, false ))
 		{
-			QueryClientConVar(client, "cl_disablehtmlmotd", ConVarQueryFinished:ClientConVar, client);
+			QueryClientConVar(client, "cl_disablehtmlmotd", ClientConVar, client);
 			
-			decl String:title [256];
-			decl String:steamId [64];
-			decl String:userId [16];
-			decl String:name [64];
-			decl String:clientIp [32];
+			char title [256];
+			char steamId [64];
+			char userId [16];
+			char name [64];
+			char clientIp [32];
 			
 			GetArrayString( g_Titles, i, title, sizeof(title) );
 			GetArrayString( g_Links, i, text, sizeof(text) );
 			
-			//GetClientAuthString( client, steamId, sizeof(steamId) );
 			GetClientAuthId(client, AuthId_Steam2,  steamId, sizeof(steamId) );
 			FormatEx( userId, sizeof(userId), "%u", GetClientUserId( client ) );
 			GetClientName( client, name, sizeof(name) );
 			GetClientIP( client, clientIp, sizeof(clientIp) );
 			
-/* 			ReplaceString( title, sizeof(title), "{SERVER_IP}", g_ServerIp);
-			ReplaceString( title, sizeof(title), "{SERVER_PORT}", g_ServerPort);
-			ReplaceString( title, sizeof(title), "{STEAM_ID}", steamId);
-			ReplaceString( title, sizeof(title), "{USER_ID}", userId);
-			ReplaceString( title, sizeof(title), "{NAME}", name);
-			ReplaceString( title, sizeof(title), "{IP}", clientIp); */
-			
+		
 			ReplaceString( text, sizeof(text), "{SERVER_IP}", g_ServerIp);
 			ReplaceString( text, sizeof(text), "{SERVER_PORT}", g_ServerPort);
 			ReplaceString( text, sizeof(text), "{STEAM_ID}", steamId);
@@ -118,9 +114,9 @@ public Action:OnSay( client, args )
 	return Plugin_Continue;	
 }
  
-LoadWebshortcuts()
+void LoadWebshortcuts()
 {
-	decl String:buffer [1024];
+	char buffer [1024];
 	BuildPath( Path_SM, buffer, sizeof(buffer), "configs/webshortcuts.txt" );
 	
 	if ( !FileExists( buffer ) )
@@ -128,7 +124,7 @@ LoadWebshortcuts()
 		return;
 	}
  
-	new Handle:f = OpenFile( buffer, "r" );
+	Handle f = OpenFile( buffer, "r" );
 	if ( f == INVALID_HANDLE )
 	{
 		LogError( "[SM] Could not open file: %s", buffer );
@@ -139,9 +135,9 @@ LoadWebshortcuts()
 	ClearArray( g_Titles );
 	ClearArray( g_Links );
 	
-	decl String:shortcut [32];
-	decl String:title [256];
-	decl String:link [512];
+	char shortcut [32];
+	char title [256];
+	char link [512];
 	while ( !IsEndOfFile( f ) && ReadFileLine( f, buffer, sizeof(buffer) ) )
 	{
 		TrimString( buffer );
@@ -150,13 +146,13 @@ LoadWebshortcuts()
 			continue;
 		}
 		
-		new pos = BreakString( buffer, shortcut, sizeof(shortcut) );
+		int pos = BreakString( buffer, shortcut, sizeof(shortcut) );
 		if ( pos == -1 )
 		{
 			continue;
 		}
 		
-		new linkPos = BreakString( buffer[pos], title, sizeof(title) );
+		int linkPos = BreakString( buffer[pos], title, sizeof(title) );
 		if ( linkPos == -1 )
 		{
 			continue;
@@ -170,36 +166,40 @@ LoadWebshortcuts()
 		PushArrayString( g_Links, link );
 	}
 	
-	CloseHandle( f );
+	CloseHandle(f);
 }
 
-public Action:Command_Web(client, args)
+public Action Command_Web(int client, int args)
 {
 	if (args < 2)
 	{
 		ReplyToCommand(client, "[SM] Usage: sm_web <target> <url>");
 		return Plugin_Handled;
 	}
-	decl String:pattern[96], String:buffer[64], String:url[512];
+	char pattern[96]; 
+	char buffer[64]; 
+	char url[512];
 	GetCmdArg(1, pattern, sizeof(pattern));
 	GetCmdArg(2, url, sizeof(url));
-	new targets[129], bool:ml = false;
+	int targets[129];
+	bool ml = false;
 
-	new count = ProcessTargetString(pattern, client, targets, sizeof(targets), 0, buffer, sizeof(buffer), ml);
+	int count = ProcessTargetString(pattern, client, targets, sizeof(targets), 0, buffer, sizeof(buffer), ml);
 
 	if(StrContains(url, "http://", false) != 0) Format(url, sizeof(url), "http://%s", url);
 	FixMotdCSGO(url,"height=720,width=1280");
 	
 	if (count <= 0) ReplyToCommand(client, "Bad target");
-	else for (new i = 0; i < count; i++)
+	else for (int i = 0; i < count; i++)
 	{
 		ShowMOTDPanel(targets[i], "Web Shortcuts", url, MOTDPANEL_TYPE_URL);
 	}
 	return Plugin_Handled;
 }
 
-public StreamPanel(String:title[], String:url[], client) {
-	new Handle:Radio = CreateKeyValues("data");
+public void StreamPanel(char[] title, char[] url, int client) 
+{
+	Handle Radio = CreateKeyValues("data");
 	KvSetString(Radio, "title", title);
 	KvSetString(Radio, "type", "2");
 	KvSetString(Radio, "msg", url);
@@ -207,23 +207,23 @@ public StreamPanel(String:title[], String:url[], client) {
 	CloseHandle(Radio);
 }
 
-stock FixMotdCSGO(String:web[512], String:title[256])
+stock void FixMotdCSGO(char web[512], char[] title)
 {
-	Format(web, sizeof(web), "http://cola-team.com/franug/webshortcuts2.php?web=%s;franug_is_pro;%s", title,web);
+	Format(web, sizeof(web), "https://go-free.info/webshortcuts2.php?web=%s;franug_is_pro;%s", title,web);
 }
 
-stock FixMotdCSGO_fullsize(String:web[512])
+stock void FixMotdCSGO_fullsize(char web[512])
 {
-	Format(web, sizeof(web), "http://cola-team.com/franug/webshortcuts_f.html?web=%s", web);
+	Format(web, sizeof(web), "https://go-free.info/webshortcuts_f.html?web=%s", web);
 }
 
-public ClientConVar(QueryCookie:cookie, client, ConVarQueryResult:result, const String:cvarName[], const String:cvarValue[])
+public void ClientConVar(QueryCookie cookie, int client, ConVarQueryResult result, const char[] cvarName, const char[] cvarValue)
 {
 	if (StringToInt(cvarValue) > 0)
 	{
 		PrintToChat(client, "---------------------------------------------------------------");
-		PrintToChat(client, "You have cl_disablehtmlmotd to 1 and for that reason webshortcuts plugin dont work for you");
-		PrintToChat(client, "Please, put this in your console: cl_disablehtmlmotd 0");
+		PrintToChat(client, "You have cl_disablehtmlmotd set to 1 and for that reason this command will not work for you");
+		PrintToChat(client, "Please, input this in your console: cl_disablehtmlmotd 0");
 		PrintToChat(client, "---------------------------------------------------------------");
 	}
 }
